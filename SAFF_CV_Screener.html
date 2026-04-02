@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAFF & Co. — CV Screener</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+  :root {
+    --navy: #1F3864;
+    --blue: #2E75B6;
+    --light-blue: #BDD7EE;
+    --bg: #F0F4FA;
+    --white: #FFFFFF;
+    --green: #27AE60;
+    --yellow: #F39C12;
+    --red: #E74C3C;
+    --text: #1a1a2e;
+    --muted: #6B7280;
+    --card-shadow: 0 2px 16px rgba(31,56,100,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── HEADER ─────────────────────────────── */
+  .header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+    color: white; padding: 28px 40px 24px;
+    display: flex; align-items: center; gap: 20px;
+    box-shadow: 0 4px 20px rgba(31,56,100,0.3);
+  }
+  .logo-box {
+    background: white; border-radius: 10px; padding: 8px 14px;
+    font-weight: 900; font-size: 18px; color: var(--navy); letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .header-text h1 { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+  .header-text p { font-size: 13px; opacity: 0.8; margin-top: 3px; }
+  .pentacode-badges { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge {
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px; padding: 4px 12px; font-size: 11px; white-space: nowrap;
+    backdrop-filter: blur(4px);
+  }
+
+  /* ── MAIN ─────────────────────────────── */
+  .main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  /* ── UPLOAD ZONE ─────────────────────────────── */
+  .upload-card {
+    background: white; border-radius: 16px; padding: 36px;
+    box-shadow: var(--card-shadow); margin-bottom: 28px;
+  }
+  .upload-card h2 { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .drop-zone {
+    border: 2.5px dashed var(--light-blue); border-radius: 12px;
+    padding: 48px 24px; text-align: center; cursor: pointer;
+    transition: all 0.2s ease; background: #F8FBFF;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--blue); background: #EBF3FB;
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-icon { font-size: 48px; margin-bottom: 12px; }
+  .drop-text { font-size: 16px; font-weight: 600; color: var(--navy); margin-bottom: 6px; }
+  .drop-sub { font-size: 13px; color: var(--muted); }
+  .file-list { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .file-chip {
+    background: var(--light-blue); color: var(--navy);
+    border-radius: 20px; padding: 5px 14px 5px 10px;
+    font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;
+  }
+  .file-chip .remove { cursor: pointer; opacity: 0.6; font-size: 14px; }
+  .file-chip .remove:hover { opacity: 1; }
+
+  .btn-analyze {
+    width: 100%; margin-top: 20px;
+    background: linear-gradient(135deg, var(--navy), var(--blue));
+    color: white; border: none; border-radius: 10px;
+    padding: 14px; font-size: 16px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .btn-analyze:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(46,117,182,0.4); }
+  .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ── PROGRESS ─────────────────────────────── */
+  .progress-bar-wrap { background: #e0e8f0; border-radius: 10px; height: 8px; margin-top: 16px; overflow: hidden; display: none; }
+  .progress-bar { height: 100%; background: linear-gradient(90deg, var(--navy), var(--blue)); border-radius: 10px; transition: width 0.4s ease; width: 0%; }
+  .progress-label { font-size: 12px; color: var(--muted); margin-top: 6px; text-align: center; }
+
+  /* ── RESULTS ─────────────────────────────── */
+  .results-card {
+    background: white; border-radius: 16px; padding: 28px 32px;
+    box-shadow: var(--card-shadow); display: none;
+  }
+  .results-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+  }
+  .results-header h2 { font-size: 17px; font-weight: 700; color: var(--navy); }
+  .results-summary { display: flex; gap: 16px; }
+  .summary-stat { text-align: center; }
+  .summary-stat .num { font-size: 26px; font-weight: 800; color: var(--navy); }
+  .summary-stat .lbl { font-size: 11px; color: var(--muted); }
+
+  /* sort controls */
+  .sort-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+  .sort-controls label { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .sort-btn {
+    border: 1.5px solid var(--light-blue); background: white;
+    border-radius: 20px; padding: 4px 14px; font-size: 12px;
+    cursor: pointer; transition: all 0.15s; color: var(--navy);
+  }
+  .sort-btn.active, .sort-btn:hover { background: var(--navy); color: white; border-color: var(--navy); }
+
+  /* ── CANDIDATE CARDS ─────────────────────────────── */
+  .candidates-grid { display: flex; flex-direction: column; gap: 14px; }
+  .candidate-card {
+    border: 1.5px solid #E5EAF3; border-radius: 12px; overflow: hidden;
+    transition: all 0.2s; cursor: pointer;
+  }
+  .candidate-card:hover { border-color: var(--blue); box-shadow: 0 4px 16px rgba(46,117,182,0.12); }
+  .candidate-card.expanded { border-color: var(--navy); }
+
+  .cand-header {
+    padding: 16px 20px; display: flex; align-items: center; gap: 16px;
+    background: white;
+  }
+  .rank-badge {
+    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; color: white; flex-shrink: 0;
+  }
+  .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA500); }
+  .rank-2 { background: linear-gradient(135deg, #B0B0B0, #808080); }
+  .rank-3 { background: linear-gradient(135deg, #CD7F32, #A0522D); }
+  .rank-other { background: linear-gradient(135deg, var(--navy), var(--blue)); }
+
+  .cand-info { flex: 1; min-width: 0; }
+  .cand-name { font-weight: 700; font-size: 15px; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cand-file { font-size: 11px; color: var(--muted); }
+
+  .cand-scores { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .mini-score {
+    display: flex; flex-direction: column; align-items: center;
+    background: #F8FBFF; border-radius: 8px; padding: 6px 10px; min-width: 52px;
+  }
+  .mini-score .val { font-size: 16px; font-weight: 800; }
+  .mini-score .lbl { font-size: 9px; color: var(--muted); text-align: center; line-height: 1.2; margin-top: 2px; }
+
+  .total-score-wrap { display: flex; flex-direction: column; align-items: center; margin-left: 8px; }
+  .total-score {
+    font-size: 28px; font-weight: 900;
+    background: linear-gradient(135deg, var(--navy), var(--blue));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .total-label { font-size: 10px; color: var(--muted); }
+
+  .verdict {
+    padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    white-space: nowrap; margin-left: 8px;
+  }
+  .verdict-strong { background: #D4EDDA; color: #155724; }
+  .verdict-good { background: #D1ECF1; color: #0C5460; }
+  .verdict-review { background: #FFF3CD; color: #856404; }
+  .verdict-weak { background: #F8D7DA; color: #721C24; }
+
+  .expand-icon { font-size: 18px; color: var(--muted); transition: transform 0.2s; margin-left: 8px; }
+  .candidate-card.expanded .expand-icon { transform: rotate(180deg); }
+
+  /* ── DETAIL PANEL ─────────────────────────────── */
+  .cand-detail { display: none; border-top: 1.5px solid #E5EAF3; padding: 20px; background: #F8FBFF; }
+  .candidate-card.expanded .cand-detail { display: block; }
+
+  .pentacode-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .pc-item { background: white; border-radius: 10px; padding: 14px; border: 1px solid #E5EAF3; }
+  .pc-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .pc-name { font-size: 12px; font-weight: 700; color: var(--navy); }
+  .pc-gen-z { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .pc-score-display { font-size: 20px; font-weight: 800; }
+  .score-bar-bg { height: 6px; background: #E5EAF3; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+  .score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+  .pc-keywords { font-size: 10px; color: var(--muted); line-height: 1.5; }
+  .keyword-hit { background: var(--light-blue); color: var(--navy); border-radius: 4px; padding: 1px 5px; font-weight: 600; }
+
+  .ai-summary { background: white; border-radius: 10px; padding: 14px 16px; border-left: 4px solid var(--blue); }
+  .ai-summary h4 { font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+  .ai-summary p { font-size: 12px; color: #444; line-height: 1.6; }
+
+  /* ── LEGEND ─────────────────────────────── */
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+    padding: 12px 16px; background: #F8FBFF; border-radius: 10px;
+    border: 1px solid #E5EAF3;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* ── EMPTY / ERROR ─────────────────────────────── */
+  .empty-state { text-align: center; padding: 40px; color: var(--muted); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* ── TOOLTIP ─────────────────────────────── */
+  .tooltip { position: relative; cursor: help; }
+  .tooltip:hover::after {
+    content: attr(data-tip); position: absolute; bottom: 125%; left: 50%;
+    transform: translateX(-50%); background: var(--navy); color: white;
+    padding: 5px 10px; border-radius: 6px; font-size: 11px;
+    white-space: nowrap; z-index: 99;
+  }
+
+  @media (max-width: 700px) {
+    .header { padding: 18px 16px; flex-wrap: wrap; }
+    .pentacode-badges { display: none; }
+    .main { padding: 16px; }
+    .cand-scores { gap: 5px; }
+    .mini-score { min-width: 44px; padding: 4px 6px; }
+    .total-score { font-size: 22px; }
+    .upload-card { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-box">SAFF&Co.</div>
+  <div class="header-text">
+    <h1>CV Screener — Pentacode Fit</h1>
+    <p>Sortir kandidat otomatis berdasarkan 5 nilai inti SAFF & Co.</p>
+  </div>
+  <div class="pentacode-badges">
+    <span class="badge">🚀 Dare Big</span>
+    <span class="badge">🔍 Stay Curious</span>
+    <span class="badge">💎 Own It</span>
+    <span class="badge">🌱 Make It Matter</span>
+    <span class="badge">🤝 Better Together</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- UPLOAD CARD -->
+  <div class="upload-card">
+    <h2>📄 Upload CV Kandidat</h2>
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" multiple accept=".pdf,.docx,.txt" />
+      <div class="drop-icon">📂</div>
+      <div class="drop-text">Drag & drop CV di sini, atau klik untuk pilih file</div>
+      <div class="drop-sub">Format didukung: PDF, DOCX, TXT &nbsp;·&nbsp; Bisa upload banyak sekaligus</div>
+    </div>
+    <div class="file-list" id="fileList"></div>
+    <div class="progress-bar-wrap" id="progressWrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <p class="progress-label" id="progressLabel"></p>
+    <button class="btn-analyze" id="btnAnalyze" disabled onclick="analyzeAll()">
+      🔍 Analisis & Sortir CV
+    </button>
+  </div>
+
+  <!-- RESULTS CARD -->
+  <div class="results-card" id="resultsCard">
+    <div class="results-header">
+      <h2>🏆 Hasil Pemeringkatan Kandidat</h2>
+      <div class="results-summary">
+        <div class="summary-stat"><div class="num" id="statTotal">0</div><div class="lbl">Total CV</div></div>
+        <div class="summary-stat"><div class="num" id="statStrong" style="color:var(--green)">0</div><div class="lbl">Sangat Cocok</div></div>
+        <div class="summary-stat"><div class="num" id="statGood" style="color:var(--blue)">0</div><div class="lbl">Cocok</div></div>
+        <div class="summary-stat"><div class="num" id="statReview" style="color:var(--yellow)">0</div><div class="lbl">Perlu Review</div></div>
+        <div class="summary-stat"><div class="num" id="statWeak" style="color:var(--red)">0</div><div class="lbl">Kurang Cocok</div></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> <b>Sangat Cocok</b>: ≥75 poin — Langsung prioritaskan</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> <b>Cocok</b>: 55–74 poin — Lanjut HR Interview</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--yellow)"></div> <b>Perlu Review</b>: 35–54 poin — Review lebih lanjut</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> <b>Kurang Cocok</b>: &lt;35 poin — Tidak direkomendasikan</div>
+    </div>
+
+    <div class="sort-controls">
+      <label>Urutkan berdasarkan:</label>
+      <button class="sort-btn active" onclick="sortResults('total', this)">Total Skor</button>
+      <button class="sort-btn" onclick="sortResults('dare_big', this)">Dare Big</button>
+      <button class="sort-btn" onclick="sortResults('stay_curious', this)">Stay Curious</button>
+      <button class="sort-btn" onclick="sortResults('own_it', this)">Own It</button>
+      <button class="sort-btn" onclick="sortResults('make_it_matter', this)">Make It Matter</button>
+      <button class="sort-btn" onclick="sortResults('better_together', this)">Better Together</button>
+    </div>
+
+    <div class="candidates-grid" id="candidatesGrid"></div>
+  </div>
+
+</div>
+
+<script>
+// ─── PENTACODE CONFIG ─────────────────────────────────────────────────────────
+const PENTACODE = [
+  {
+    id: 'dare_big',
+    name: 'Visionary Spirit',
+    genZ: 'Dare Big',
+    emoji: '🚀',
+    color: '#E74C3C',
+    weight: 20,
+    desc: 'Bold ambition to see beyond the obvious and imagine the future.',
+    keywords: [
+      // Ambisi & visi
+      'visi','visioner','visionary','ambisi','ambitious','ambisius','berani','bold','berani bermimpi',
+      'dare','dream big','think big','think outside','out of the box','berpikir besar','jauh ke depan',
+      'inovatif','innovative','innovate','inovasi','innovation','kreasi','kreatif','creative','creativity',
+      // Kepemimpinan strategis
+      'strategic','strategis','strategi','leadership','pemimpin','memimpin','lead','pimpin',
+      'inisiatif','initiative','pioneering','pelopor','trailblazer','trendsetter',
+      'transform','transformasi','reshape','disruptive','disrupsi','disrupt',
+      'reimagine','reinvent','revolutionize','revolusi','breakthrough','terobosan',
+      // Entrepreneurship
+      'entrepreneur','wirausaha','startup','founder','co-founder','co founder',
+      'membangun','build from scratch','mendirikan','establish','pioneered',
+      'product development','pengembangan produk','roadmap','business development',
+      'memimpin tim','led team','mengelola','kelola',
+      // Hasil nyata
+      'menciptakan','created','developed','launched','meluncurkan','meluncurkan produk',
+      'new initiative','inisiatif baru','game changer','impact besar','large scale',
+    ]
+  },
+  {
+    id: 'stay_curious',
+    name: 'Curiosity & Wonder',
+    genZ: 'Stay Curious',
+    emoji: '🔍',
+    color: '#9B59B6',
+    weight: 20,
+    desc: 'A restless drive to explore, question, and experiment.',
+    keywords: [
+      // Belajar & eksplorasi
+      'curious','curiosity','rasa ingin tahu','belajar','learning','learn','terus belajar',
+      'self-taught','otodidak','autodidak','self taught','independently learned',
+      'research','riset','meneliti','explore','eksplorasi','experiment','bereksperimen',
+      'question','pertanyaan','analyze','analisis','deep dive','mendalami',
+      // Sertifikasi & pendidikan lanjutan
+      'sertifikasi','certification','certified','kursus','course','bootcamp',
+      'workshop','pelatihan','training','seminar','webinar','short course',
+      'google','aws','microsoft','coursera','udemy','linkedin learning',
+      'brevet','akreditasi','accreditation',
+      // Adaptasi
+      'adaptif','adaptive','adaptable','beradaptasi','versatile','fleksibel','flexible',
+      'growth mindset','berkembang','tumbuh','improvement','perbaikan',
+      'multidisiplin','multidisciplinary','lintas fungsi','cross functional',
+      // Pengembangan diri
+      'personal development','pengembangan diri','membaca','reading','mentor','mentoring',
+      'fast learner','quick learner','cepat belajar','tech-savvy','digital savvy',
+      'up to date','tren','trend','mengikuti perkembangan',
+    ]
+  },
+  {
+    id: 'own_it',
+    name: 'Integrity at the Core',
+    genZ: 'Own It',
+    emoji: '💎',
+    color: '#F39C12',
+    weight: 20,
+    desc: 'Full accountability — take charge, decide, and stand by the outcome.',
+    keywords: [
+      // Akuntabilitas & tanggung jawab
+      'akuntabel','accountable','accountability','bertanggung jawab','tanggung jawab',
+      'responsible','responsibility','ownership','own it','memiliki','kepemilikan',
+      'deliver','menyelesaikan','complete','accomplish','achieve','capai','tercapai',
+      'on time','tepat waktu','deadline','sesuai target','target','kpi','okr',
+      // Integritas
+      'integritas','integrity','jujur','honest','transparency','transparansi',
+      'ethical','etika','profesional','professional','terpercaya','reliable','dependable',
+      'konsisten','consistent','komitmen','committed','commitment','dedicated','dedikasi',
+      // Mengambil keputusan
+      'decision making','pengambilan keputusan','decisive','tegas','resolute',
+      'problem solving','problem-solving','memecahkan masalah','solusi','solution',
+      'inisiatif','proaktif','proactive','take initiative','take charge','mengambil alih',
+      // Rekam jejak
+      'track record','riwayat kerja','kinerja','performance','prestasi','achievement',
+      'award','penghargaan','recognition','diakui','meningkatkan','improved',
+    ]
+  },
+  {
+    id: 'make_it_matter',
+    name: 'Enduring Impact',
+    genZ: 'Make It Matter',
+    emoji: '🌱',
+    color: '#27AE60',
+    weight: 20,
+    desc: 'Build for long-term relevance and cultural impact, not just quick wins.',
+    keywords: [
+      // Dampak jangka panjang
+      'dampak','impact','meaningful','bermakna','purpose','tujuan','misi','mission',
+      'long-term','jangka panjang','legacy','warisan','sustainable','berkelanjutan',
+      'value','nilai','nilai tambah','value creation','create value','memberi dampak',
+      'relevance','relevan','lasting','enduring','abadi','bertahan',
+      // Komunitas & sosial
+      'komunitas','community','sosial','social','masyarakat','society',
+      'csr','tanggung jawab sosial','sosial responsibility','lingkungan','environment',
+      'diversity','diversitas','inklusi','inclusion','inclusivity','keberagaman',
+      // Seni, budaya, kreatif Indonesia
+      'seni','art','artistry','kreativitas','creative industry','industri kreatif',
+      'budaya','culture','cultural','indonesia','lokal','local','heritage','warisan budaya',
+      'kekayaan budaya','nusantara','nasional','bangsa','kebanggaan',
+      // Pertumbuhan strategis
+      'brand building','membangun brand','brand equity','market share','pangsa pasar',
+      'customer loyalty','loyalitas','relationship','hubungan jangka panjang',
+      'impact-driven','mission-driven','purpose-driven','change maker','agent of change',
+    ]
+  },
+  {
+    id: 'better_together',
+    name: 'Collective Brilliance',
+    genZ: 'Better Together',
+    emoji: '🤝',
+    color: '#2E75B6',
+    weight: 20,
+    desc: 'Collaboration multiplies impact while each person stays accountable.',
+    keywords: [
+      // Kerja tim
+      'tim','team','teamwork','kerja tim','berkolaborasi','kolaborasi','collaboration',
+      'collaborate','cross-functional','lintas divisi','lintas departemen','lintas fungsi',
+      'bersama','together','synergy','sinergi','bersinergi','support','mendukung',
+      'koordinasi','coordination','koordinat','bekerjasama','kerjasama',
+      // Komunikasi
+      'komunikasi','communication','komunikatif','interpersonal','stakeholder',
+      'presentasi','presentation','reporting','laporan','brief','proposal',
+      'empati','empathy','mendengar','listening','active listening','relationship',
+      // Kepemimpinan kolektif
+      'mentor','mentoring','coach','coaching','membimbing','training others',
+      'berbagi ilmu','knowledge sharing','sharing session','transfer knowledge',
+      'membangun tim','team building','organize','organizer','koordinator','co-lead',
+      // Partnership
+      'partner','partnership','vendor','client','klien','pelanggan','mitra',
+      'external','internal','multi-stakeholder','community building',
+      'networking','jaringan','relation','hubungan',
+    ]
+  }
+];
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let files = [];
+let results = [];
+let currentSort = 'total';
+
+// ─── FILE HANDLING ────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const btnAnalyze = document.getElementById('btnAnalyze');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  addFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', () => addFiles([...fileInput.files]));
+
+function addFiles(newFiles) {
+  newFiles.forEach(f => {
+    if (!files.find(x => x.name === f.name && x.size === f.size)) files.push(f);
+  });
+  renderFileList();
+}
+
+function removeFile(name, size) {
+  files = files.filter(f => !(f.name === name && f.size === size));
+  renderFileList();
+}
+
+function renderFileList() {
+  fileList.innerHTML = files.map(f => `
+    <div class="file-chip">
+      ${getFileIcon(f.name)} ${f.name}
+      <span class="remove" onclick="removeFile('${f.name}', ${f.size})">✕</span>
+    </div>
+  `).join('');
+  btnAnalyze.disabled = files.length === 0;
+}
+
+function getFileIcon(name) {
+  if (name.endsWith('.pdf')) return '📕';
+  if (name.endsWith('.docx')) return '📘';
+  return '📄';
+}
+
+// ─── TEXT EXTRACTION ──────────────────────────────────────────────────────────
+async function extractText(file) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.txt')) {
+    return await file.text();
+  } else if (name.endsWith('.pdf')) {
+    return await extractPDF(file);
+  } else if (name.endsWith('.docx')) {
+    return await extractDOCX(file);
+  }
+  return '';
+}
+
+async function extractPDF(file) {
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const ab = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    return text;
+  } catch (e) {
+    console.error('PDF error:', e);
+    return `[Gagal membaca PDF: ${file.name}]`;
+  }
+}
+
+async function extractDOCX(file) {
+  try {
+    const ab = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: ab });
+    return result.value;
+  } catch (e) {
+    console.error('DOCX error:', e);
+    return `[Gagal membaca DOCX: ${file.name}]`;
+  }
+}
+
+// ─── SCORING ENGINE ───────────────────────────────────────────────────────────
+function scoreCV(text) {
+  const lower = text.toLowerCase();
+  const scores = {};
+  const hits = {};
+
+  PENTACODE.forEach(pc => {
+    let found = [];
+    pc.keywords.forEach(kw => {
+      const kwLower = kw.toLowerCase();
+      if (lower.includes(kwLower) && !found.includes(kwLower)) {
+        found.push(kw);
+      }
+    });
+
+    // Scoring: setiap keyword unik = +1.5, max 20 poin per value
+    // Bonus: 3+ hits = +2, 6+ hits = +3
+    let raw = Math.min(found.length * 1.5, pc.weight);
+    if (found.length >= 3) raw = Math.min(raw + 2, pc.weight);
+    if (found.length >= 6) raw = Math.min(raw + 3, pc.weight);
+    scores[pc.id] = Math.round(raw);
+    hits[pc.id] = found;
+  });
+
+  const total = Object.values(scores).reduce((a, b) => a + b, 0);
+  return { scores, hits, total };
+}
+
+function getVerdict(total) {
+  if (total >= 75) return { label: '⭐ Sangat Cocok', cls: 'verdict-strong', color: 'var(--green)' };
+  if (total >= 55) return { label: '✅ Cocok', cls: 'verdict-good', color: 'var(--blue)' };
+  if (total >= 35) return { label: '🔎 Perlu Review', cls: 'verdict-review', color: 'var(--yellow)' };
+  return { label: '⚠️ Kurang Cocok', cls: 'verdict-weak', color: 'var(--red)' };
+}
+
+function getBarColor(score, max) {
+  const pct = score / max;
+  if (pct >= 0.75) return 'var(--green)';
+  if (pct >= 0.5) return 'var(--blue)';
+  if (pct >= 0.25) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+function generateSummary(result) {
+  const { scores, hits, total } = result;
+  const verdict = getVerdict(total);
+  const strongest = PENTACODE.reduce((a, b) => scores[a.id] >= scores[b.id] ? a : b);
+  const weakest = PENTACODE.reduce((a, b) => scores[a.id] <= scores[b.id] ? a : b);
+
+  const pcts = PENTACODE.map(pc => ({ pc, pct: scores[pc.id] / pc.weight }));
+  const strong = pcts.filter(x => x.pct >= 0.6).map(x => x.pc.genZ);
+  const weak = pcts.filter(x => x.pct < 0.35).map(x => x.pc.genZ);
+
+  let summary = '';
+  if (total >= 75) {
+    summary = `Kandidat ini menunjukkan kesesuaian kuat dengan Pentacode SAFF & Co. Nilai tertinggi pada <b>${strongest.genZ}</b> (${scores[strongest.id]}/${strongest.weight} poin). `;
+    summary += strong.length > 1 ? `Menonjol di: ${strong.join(', ')}.` : '';
+    summary += weak.length > 0 ? ` Perlu dikembangkan: ${weak.join(', ')}.` : ' Semua nilai terwakili dengan baik.';
+  } else if (total >= 55) {
+    summary = `Kandidat menunjukkan kecocokan yang cukup baik. Kekuatan di <b>${strongest.genZ}</b>. `;
+    summary += weak.length > 0 ? `Sinyal lemah pada: ${weak.join(', ')}.` : 'Profil cukup seimbang.';
+    summary += ' Lanjutkan ke HR Interview untuk konfirmasi.';
+  } else if (total >= 35) {
+    summary = `Profil kandidat memerlukan review lebih dalam. Sedikit sinyal pada <b>${strongest.genZ}</b>. `;
+    summary += `Belum banyak indikator pada: ${weak.length > 0 ? weak.join(', ') : 'beberapa nilai'}. `;
+    summary += 'Pertimbangkan screen call untuk memastikan culture fit.';
+  } else {
+    summary = `CV kandidat kurang menunjukkan indikator Pentacode SAFF & Co. Sebagian besar nilai tidak terwakili secara eksplisit. Tidak direkomendasikan untuk dilanjutkan.`;
+  }
+  return summary;
+}
+
+// ─── ANALYZE ─────────────────────────────────────────────────────────────────
+async function analyzeAll() {
+  if (files.length === 0) return;
+  results = [];
+
+  const progressWrap = document.getElementById('progressWrap');
+  const progressBar = document.getElementById('progressBar');
+  const progressLabel = document.getElementById('progressLabel');
+  btnAnalyze.disabled = true;
+  btnAnalyze.textContent = '⏳ Menganalisis...';
+  progressWrap.style.display = 'block';
+
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    progressLabel.textContent = `Memproses ${i + 1}/${files.length}: ${f.name}`;
+    progressBar.style.width = `${((i) / files.length) * 100}%`;
+    await new Promise(r => setTimeout(r, 30));
+
+    const text = await extractText(f);
+    const analysis = scoreCV(text);
+    const verdict = getVerdict(analysis.total);
+    const summary = generateSummary(analysis);
+
+    // Coba ekstrak nama dari filename atau teks
+    let candName = f.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ').replace(/cv|resume|curiculum|curriculum|vitae/gi, '').trim();
+    if (!candName) candName = f.name;
+
+    results.push({ name: candName, file: f.name, ...analysis, verdict, summary });
+  }
+
+  progressBar.style.width = '100%';
+  progressLabel.textContent = `✅ Selesai menganalisis ${files.length} CV`;
+
+  setTimeout(() => {
+    btnAnalyze.disabled = false;
+    btnAnalyze.textContent = '🔍 Analisis & Sortir CV';
+  }, 1000);
+
+  renderResults();
+}
+
+// ─── RENDER RESULTS ───────────────────────────────────────────────────────────
+function sortResults(key, btn) {
+  currentSort = key;
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  if (key === 'total') {
+    results.sort((a, b) => b.total - a.total);
+  } else {
+    results.sort((a, b) => b.scores[key] - a.scores[key]);
+  }
+  renderCandidates();
+}
+
+function renderResults() {
+  results.sort((a, b) => b.total - a.total);
+  document.getElementById('resultsCard').style.display = 'block';
+  document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Stats
+  document.getElementById('statTotal').textContent = results.length;
+  document.getElementById('statStrong').textContent = results.filter(r => r.total >= 75).length;
+  document.getElementById('statGood').textContent = results.filter(r => r.total >= 55 && r.total < 75).length;
+  document.getElementById('statReview').textContent = results.filter(r => r.total >= 35 && r.total < 55).length;
+  document.getElementById('statWeak').textContent = results.filter(r => r.total < 35).length;
+
+  renderCandidates();
+}
+
+function renderCandidates() {
+  const grid = document.getElementById('candidatesGrid');
+  grid.innerHTML = results.map((r, idx) => renderCandidateCard(r, idx)).join('');
+}
+
+function renderCandidateCard(r, idx) {
+  const rank = idx + 1;
+  const rankCls = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'rank-other';
+
+  const miniScores = PENTACODE.map(pc => `
+    <div class="mini-score tooltip" data-tip="${pc.name}: ${r.scores[pc.id]}/${pc.weight} poin">
+      <span class="val" style="color:${getBarColor(r.scores[pc.id], pc.weight)}">${r.scores[pc.id]}</span>
+      <span class="lbl">${pc.emoji}<br>${pc.genZ}</span>
+    </div>
+  `).join('');
+
+  const breakdown = PENTACODE.map(pc => {
+    const score = r.scores[pc.id];
+    const pct = Math.round((score / pc.weight) * 100);
+    const kwHits = r.hits[pc.id].slice(0, 8).map(k => `<span class="keyword-hit">${k}</span>`).join(' ');
+    const noHit = r.hits[pc.id].length === 0 ? '<span style="color:var(--red);font-size:10px;">Tidak ada indikator ditemukan</span>' : '';
+    return `
+      <div class="pc-item">
+        <div class="pc-item-header">
+          <div>
+            <div class="pc-name">${pc.emoji} ${pc.name}</div>
+            <div class="pc-gen-z">"${pc.genZ}"</div>
+          </div>
+          <div class="pc-score-display" style="color:${getBarColor(score, pc.weight)}">${score}<span style="font-size:12px;color:var(--muted)">/${pc.weight}</span></div>
+        </div>
+        <div class="score-bar-bg">
+          <div class="score-bar-fill" style="width:${pct}%;background:${getBarColor(score, pc.weight)}"></div>
+        </div>
+        <div class="pc-keywords">${kwHits || noHit}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="candidate-card" id="card-${idx}">
+      <div class="cand-header" onclick="toggleCard(${idx})">
+        <div class="rank-badge ${rankCls}">#${rank}</div>
+        <div class="cand-info">
+          <div class="cand-name">${r.name}</div>
+          <div class="cand-file">📎 ${r.file}</div>
+        </div>
+        <div class="cand-scores">
+          ${miniScores}
+          <div class="total-score-wrap">
+            <div class="total-score">${r.total}</div>
+            <div class="total-label">/ 100</div>
+          </div>
+          <span class="verdict ${r.verdict.cls}">${r.verdict.label}</span>
+        </div>
+        <span class="expand-icon">▾</span>
+      </div>
+      <div class="cand-detail">
+        <div class="pentacode-breakdown">${breakdown}</div>
+        <div class="ai-summary">
+          <h4>📋 Ringkasan Kesesuaian Pentacode</h4>
+          <p>${r.summary}</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleCard(idx) {
+  const card = document.getElementById(`card-${idx}`);
+  card.classList.toggle('expanded');
+}
+</script>
+</body>
+</html>
